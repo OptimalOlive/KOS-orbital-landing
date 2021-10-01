@@ -1,0 +1,1210 @@
+CLEARSCREEN.
+set Pousser to 0.
+set directionCommande to -90.
+set pitchCommande to 0.
+LOCK THROTTLE TO Pousser.
+LOCK STEERING TO HEADING(directionCommande,pitchCommande).
+
+set t0 to TIME:SECONDS.
+set t to 0.
+set dt to 0.05.
+set BetaF to 0.
+set Vdt to 0.
+set Hfusée to ALT:RADAR.
+set Conste to 2.71828182846.
+set Dfreinage2 to 10000.
+
+stage.
+
+set Latcible to -0.097215540.
+set longcible to -74.557701108.
+// set Latcible to 6.
+// set longcible to -62.
+
+
+set Mission to 1.
+
+wait 20.
+
+set Hlim to 50000.
+set AngleAtt to 30.
+set ListLatCurr to list().
+set ListLongCurr to list().
+
+set ETAPE to "attente".
+
+until Mission = 0 {
+
+	set dt to abs(t-(TIME:SECONDS-t0)).
+	set t to TIME:SECONDS-t0.
+	
+	// set CoordAtt to ZoneAtt.
+	
+	// set LatAtt to CoordAtt[0].
+	// set LongAtt to CoordAtt[1].
+	
+	if ETAPE = "attente" {
+		
+		set DdegP to ((Latcible-Ship:Latitude)^2+(longcible-SHIP:Longitude)^2)^0.5.
+		set DminP to arccos(BODY:RADIUS/(BODY:RADIUS+SHIP:ALTITUDE))*1.6.
+		
+		if DdegP < DminP {
+			
+			CLEARSCREEN.
+			print"calcul allumage de de-orbite".
+			set Coord1Burn to CoordPetiteDistance(Latcible,Longcible,25000,AnglePetiteCoord(Ship:Latitude,ship:longitude,Latcible,longcible)).
+			
+			set Lat1Burn to Coord1Burn[0].
+			
+			set Long1Burn to Coord1Burn[1].
+			set BurnAtt to RechercheDeorbitBurn(Lat1Burn,Long1Burn,70,10000,5).
+		
+			set VbC to BurnAtt[0].
+			set AngleBurn to BurnAtt[1].
+			set Deltadistance to BurnAtt[2].
+			
+			set T3 to TIME:SECONDS-t0.
+			
+			set ImpSpe to ISPCurrent.
+			set ShipThrust to SHIP:MAXTHRUST*1000.
+			set Tb to DeltaTburn(ShipThrust,ImpSpe,VbC).
+			
+			set directionCommande to AngleBurn.
+			set pitchCommande to 0.
+			
+			CLEARSCREEN.
+			print "ETAPE: " + ETAPE at (0,0).
+			print "VbC: " + round(VbC,2) at (0,2).
+			print "AngleBurn: " + round(AngleBurn,2) at (0,3).
+			print "Deltadistance: " + round(Deltadistance,2) at (0,4).
+			
+			set ETAPE to "Allumage1".
+		
+		} ELSE {
+		
+			CLEARSCREEN.
+			print "ETAPE: " + ETAPE at (0,0).
+			print "t: " + round(t,2) at (0,2).
+			print "Delta angle vaisseau/cible: " + round(DdegP,2) at (0,3).
+			print "Delta angle minimum " + round(DminP,2) at (0,4).
+		
+		}
+		
+	}
+	
+	if ETAPE = "Allumage1" {
+	
+		CLEARSCREEN.
+		print "ETAPE: " + ETAPE at (0,0).
+		//print "t depuis etape Allumage1: " + round(T3,2) at (0,2).
+		//print "t: " + round(t,2) at (0,1).
+		
+		
+		if t > T3+5 and t < T3+5+Tb {
+			print "temps d'allumage calcule :" + round(Tb,1) at (0,2).
+			print "extinction dans :" + round(abs(t-(T3+5+Tb)),1) at (0,3).
+			print "deltaV : " + round(VbC,2) at (0,4).
+			print "azimute : " + round(AngleBurn,2) at (0,5).
+			print "distance à la cible après Allumage1: " + round(Deltadistance,2) at (0,6).
+			set Pousser to 1.
+		
+		} ELSE {
+			print "temps d'allumage calcule :" + round(Tb,1) at (0,2).
+			print "allumage dans :" + round(T3+5-t,1) at (0,3).
+			print "deltaV : " + round(VbC,2) at (0,4).
+			print "azimute : " + round(AngleBurn,2) at (0,5).
+			print "distance à la cible après Allumage1: " + round(Deltadistance,2) at (0,6).
+			set Pousser to 0.
+			
+		}
+		
+		if t > T3+5+Tb {
+			
+			set ETAPE to "Attente2".
+			
+		}
+		
+		
+	}
+	
+	if ETAPE = "Attente2" {
+		
+		set Dist2Burn to PetiteDistanceCoord(SHIP:LATITUDE,SHIP:LONGITUDE,Latcible,Longcible).
+		
+		if SHIP:ALTITUDE < 60000 {
+			
+			CLEARSCREEN.
+			print"calcul allumage de re-entre".
+			
+			set DistPlus to Dist2Burn*0.035.
+			
+			set Coord2Burn to CoordPetiteDistance(Latcible,Longcible,DistPlus,AnglePetiteCoord(Ship:Latitude,ship:longitude,Latcible,longcible)).
+			
+			set Lat2Burn to Coord2Burn[0].
+			set Long2Burn to Coord2Burn[1].
+			
+			set BurnAtt to RechercheDeorbitBurn(Lat2Burn,Long2Burn,70,2000,5).
+		
+			set VbC to BurnAtt[0].
+			set AngleBurn to BurnAtt[1].
+			set Deltadistance to BurnAtt[2].
+			
+			set T3 to TIME:SECONDS-t0.
+			
+			set ImpSpe to ISPCurrent.
+			set ShipThrust to SHIP:MAXTHRUST*1000.
+			set Tb to DeltaTburn(ShipThrust,ImpSpe,VbC).
+			
+			set directionCommande to AngleBurn.
+			set pitchCommande to 0.
+			
+			set ETAPE to "Allumage2".
+			
+		} ELSE {
+			
+			CLEARSCREEN.
+			print "ETAPE: " + ETAPE at (0,0).
+			//print "Dist2Burn(km): " + round(Dist2Burn/1000,2) at (0,1).
+			print "En attente de l'allumage de re-entre a 60Km d'altitude" at (0,2).
+			
+		}
+	
+	}
+	
+	if ETAPE = "Allumage2" {
+	
+		CLEARSCREEN.
+		print "ETAPE: " + ETAPE at (0,0).
+		//print "allumage de re-entré dans 5s ..." at (0,1). 
+		
+		if t > T3+5 and t < T3+5+Tb {
+			print "temps d'allumage calcule :" + round(Tb,1) at (0,2).
+			print "extinction dans :" + round(abs(t-(T3+5+Tb)),1) at (0,3).
+			print "deltaV : " + round(VbC,2) at (0,4).
+			print "azimute : " + round(AngleBurn,2) at (0,5).
+			print "distance à la cible après Allumage2: " + round(Deltadistance,2) at (0,6).
+			set Pousser to 1.
+		
+		} ELSE {
+			print "temps d'allumage calcule :" + round(Tb,1) at (0,2).
+			print "allumage dans :" + round(T3+5-t,1) at (0,3).
+			print "deltaV : " + round(VbC,2) at (0,4).
+			print "azimute : " + round(AngleBurn,2) at (0,5).
+			print "distance à la cible après Allumage2: " + round(Deltadistance,2) at (0,6).
+			set Pousser to 0.
+			
+		}
+		
+		if t > T3+5+Tb {
+			
+			set ETAPE to "NavigationAerodynamique".
+			
+		}
+		
+		
+	}
+	
+	if ETAPE = "NavigationAerodynamique" {
+	
+		set Distcible to PetiteDistanceCoord(SHIP:LATITUDE,SHIP:LONGITUDE,Latcible,Longcible).
+		
+		if Distcible < 40000 or Distcible/3 < Dfreinage2*cos(VShipPitch)/2 {
+			
+			set DistSup to Dfreinage2*cos(VShipPitch)/2.5. // initialemnt /3
+			set KLong to 0.07.
+			set Kcote to 0.06.
+			
+			if Distcible < 6000 {
+			
+				set DistSup to Dfreinage2*cos(VShipPitch)/3.25. // if pas implemente
+				set KLong to 0.07.
+				set Kcote to 0.06.
+			}
+		
+		
+		} ELSE {
+			
+			set DistSup to Distcible/2. // initialemnt /4
+			set KLong to 0.003.
+			set Kcote to 0.08.
+		
+		}
+		
+		
+		set Coordcibleact to CoordPetiteDistance(Latcible,Longcible,DistSup,AnglePetiteCoord(Ship:Latitude,ship:longitude,Latcible,longcible)).
+		set Latcibleact to Coordcibleact[0].
+		set Longcibleact to Coordcibleact[1].
+		
+		set CoordCurrAtt to ZoneAttBurn(0,0,70,0).
+		
+		set LatCurrAtt to CoordCurrAtt[0].
+		set LongCurrAtt to CoordCurrAtt[1].
+		
+		set LagMoy to Moy(LatCurrAtt,ListLatCurr,3).
+		set LongMoy to Moy(LongCurrAtt,ListLongCurr,3).
+		
+		set LatCurrMoy to LagMoy[0].
+		set ListLatCurr to LagMoy[1].
+		
+		set LongCurrMoy to LongMoy[0].
+		set ListLongCurr to LongMoy[1].
+		
+		set ErreurTot to PetiteDistanceCoord(LatCurrMoy,LongCurrMoy,Latcibleact,Longcibleact).
+		set DistanceCibleact to PetiteDistanceCoord(SHIP:LATITUDE,SHIP:LONGITUDE,Latcibleact,Longcibleact).
+		set DistanceCurrAtt to PetiteDistanceCoord(SHIP:LATITUDE,SHIP:LONGITUDE,LatCurrMoy,LongCurrMoy).
+		
+		set AlpC to AnglePetiteCoord(Latcibleact,Longcibleact,LatCurrMoy,LongCurrMoy).
+		set BetaC2 to VShipYaw.
+		set BetaC2 to AlpC-BetaC2.
+		
+		set AlpC2 to AnglePetiteCoord180(Latcibleact,Longcibleact,LatCurrMoy,LongCurrMoy).
+		set BetaC3 to VShipYaw180.
+		set BetaC3 to AlpC-BetaC3.
+		
+		if BetaC2 = BetaC3 {
+			set BetaF to BetaC2.
+		} ELSE {
+			if BetaF = 0 {
+				set BetaC1 to 180-arccos(((ErreurTot^2)+(DistanceCibleact^2)-(DistanceCurrAtt^2))/(2*ErreurTot*DistanceCibleact)).
+			} ELSE {
+				set BetaC1 to BetaF.
+			}
+			
+			if BetaC2 > BetaC1-5 and BetaC2 < BetaC1+5 {
+				set BetaF to BetaC2.
+			} ELSE {
+				set BetaF to BetaC3.
+			}
+		}
+		
+		set erreurCote to sin(betaF)*ErreurTot.
+		set erreurLong to cos(BetaF)*ErreurTot.
+		
+		set DeltaVangle to 0.
+		
+		if Distcible < 130000 {
+			
+			set DeltaVangle to 15.
+			BRAKES OFF.
+			
+			if erreurLong > 1000 and Distcible < 100000 and SHIP:VELOCITY:SURFACE:MAG > 550 {
+				
+				BRAKES ON.
+			
+			}
+			
+			if VShipPitch < -80 {
+				
+				BRAKES ON.
+			
+			}
+		
+		}
+
+		set PitchCorr to MaxEnc(erreurLong*Klong,DeltaVangle).
+		set DirCorr to MaxEnc(erreurCote*Kcote,DeltaVangle).
+		
+		set pitchCommande to -VShipPitch+PitchCorr.
+		set directionCommande to -VShipYaw-DirCorr.
+		
+		set Vexp to SHIP:VELOCITY:SURFACE:MAG.
+		set Cexptot to (-2/((Vexp^2)*pair(SHIP:ALTITUDE)))*(SHIP:MASS*1000*AccSur+SHIP:MASS*1000*gr*sin(VShipPitch)).
+		
+		if VShipPitch < -83 {
+			
+			set ETAPE to "AttenteFinalBurn".
+		
+		}
+		
+		set ShipThrust to 1*SHIP:MAXTHRUST.
+		set Vsur to SHIP:VELOCITY:SURFACE:MAG.
+		set ImpSpe to ISPCurrent.
+		// set DistanceMinFreinage to 1.5*((Vsur^2)/((0.9*ShipThrust/SHIP:MASS)-sin(VShipPitch)*gr)).
+		
+		set DistanceReel to ALT:RADAR/sin(-VShipPitch).
+		// set TburnDuration to SHIP:MASS*(1-(1/(Conste^((Vsur+(2*9.81*sin(-VShipPitch)*ALT:RADAR)^0.5)/(9.81*ImpSpe)))))/(ShipThrust/(9.81*ImpSpe)).
+		// set Dfreinage to ((Vsur+((2*9.81*sin(-VShipPitch)*ALT:RADAR)^0.5))/2)*TburnDuration.
+		
+		set Dfreinage2 to 0.5*((Vsur^2)/((0.8*ShipThrust/SHIP:MASS)+((0.333*pair(0)*3*Vsur^2)/(SHIP:MASS*1000))+sin(VShipPitch)*gr)).
+		
+		if Dfreinage2/1.05 > DistanceReel and Distcible < 9000 { // init Dfreinage2 > DistanceReel and Distcible < 9000
+			
+			set ETAPE to "AllumageFinal".
+			set DdebBurn to Distcible.
+			set VhoridebBurn to SHIP:GROUNDSPEED.
+			set Kvihori to 1*VhoridebBurn/DdebBurn.
+			set PitchMaxfuse to -VShipPitch.
+		
+		}
+		
+		CLEARSCREEN.
+		print "ETAPE: " + ETAPE at (0,0).
+		print "distance a la cible actuelle (km) : " + round(Distcible/1000,2) at (0,2).
+		print "distance superieur (a la cible) vise: " + round(DistSup,2) at (0,3).
+		print "distance (simule) de l'erreur a corriger (m) : " + round(ErreurTot,2) at (0,4).
+		print "erreur transverse a corriger (m) : " + round(erreurCote,2) at (0,5).
+		print "erreur longitudinale a corriger (m) : " + round(erreurLong,2) at (0,6).
+		print "correction en tengage (degres): " + round(PitchCorr,2) at (0,7).
+		print "correction en lacet (degres): " + round(DirCorr,2) at (0,8).
+		print "evaluation du coef de friction à: " + round(Cexptot,2) at (0,9).
+		
+		print "estimation distance au sol: " + round(DistanceReel,2) at (0,10).
+		print "estimation de la distance de freinage final: " + round(Dfreinage2,2) at (0,11).
+		print "allumage final lorsque 'distance sol = distance freinage' " at (0,13).
+		
+		//print "AccSur: " + round(AccSur,5) at (0,7).
+		//print "DistanceCurrAtt: " + round(DistanceCurrAtt,2) at (0,6).
+		// print "TburnDuration: " + round(TburnDuration,2) at (0,12).
+		
+	}
+	
+	if ETAPE = "AttenteFinalBurn" {
+		
+		set ShipThrust to 1*SHIP:MAXTHRUST.
+		set Vsur to SHIP:VELOCITY:SURFACE:MAG.
+		set ImpSpe to ISPCurrent.
+		
+		set DistanceReel to ALT:RADAR/sin(-VShipPitch).
+		// set TburnDuration to SHIP:MASS*(1-(1/(Conste^((Vsur+(2*9.81*sin(-VShipPitch)*DistanceReel)^0.5)/(9.81*ImpSpe)))))/(ShipThrust/(9.81*ImpSpe)).
+		// set Dfreinage to ((Vsur+((2*9.81*sin(-VShipPitch)*DistanceReel)^0.5))/2)*TburnDuration.
+		
+		set CoordCurrAtt to ZoneAttBurn(0,0,70,0).
+		
+		set LatCurrAtt to CoordCurrAtt[0].
+		set LongCurrAtt to CoordCurrAtt[1].
+		
+		set ErreurTot to PetiteDistanceCoord(LatCurrAtt,LongCurrAtt,Latcible,Longcible).
+		
+		if ErreurTot < 250 {
+			
+			BRAKES ON.
+		
+		} ELSE {
+			
+			BRAKES OFF.
+		
+		}
+
+		// if ErreurTot > 400 and BurnCoor = 0 {
+			
+			// set BurnAtt to RechercheDeorbitBurn(Latcible,Longcible,70,300,1).
+		
+			// set VbC to BurnAtt[0].
+			// set AngleBurn to BurnAtt[1].
+			// set Deltadistance to BurnAtt[2].
+			
+			// set PitchDeCorrection to -VShippitch.
+			
+			// set ImpSpe to ISPCurrent*cos(PitchDeCorrection).
+			// set ShipThrust to SHIP:MAXTHRUST*1000*cos(PitchDeCorrection).
+			// set Tb to DeltaTburn(ShipThrust,ImpSpe,VbC).
+			// set T3 to TIME:SECONDS-t0.
+			
+			// CLEARSCREEN.
+			// print "VbC: " + round(VbC,2) at (0,1).
+			// print "Tb: " + round(Tb,2) at (0,2).
+			// print "AngleBurn: " + round(AngleBurn,2) at (0,3).
+			
+			// until t > T3 + Tb or ErreurTot < 250 {
+			
+				// set Pousser to 1.
+				// set directionCommande to AngleBurn.
+				// set PitchCommande to -PitchDeCorrection.
+				// set t to TIME:SECONDS-t0.
+				
+				// set CoordCurrAtt to ZoneAttBurn(0,0,70,0).
+				// set LatCurrAtt to CoordCurrAtt[0].
+				// set LongCurrAtt to CoordCurrAtt[1].
+				// set ErreurTot to PetiteDistanceCoord(LatCurrAtt,LongCurrAtt,Latcible,Longcible).
+				
+			
+			// }
+			
+			// set Pousser to 0.
+			// set BurnCoor to 1.
+		
+		// }
+		
+
+		
+		set Kvihori to 0.2.
+		set Kacchri to 1.
+		set Kpenchhori to 1.5.
+		
+		set AngleDeDeplacement to AnglePetiteCoord(LatCurrAtt,LongCurrAtt,Latcible,longcible).
+		set VitesseHoriCible to PetiteDistanceCoord(LatCurrAtt,LongCurrAtt,Latcible,longcible)*Kvihori.
+		set deltaAngle1 to (AngleDeDeplacement-VShipYaw).
+		
+		set VitesseHoriCommande to (abs((SHIP:GROUNDSPEED^2)+(VitesseHoriCible^2)-2*VitesseHoriCible*SHIP:GROUNDSPEED*cos(abs(deltaAngle1))))^0.5.
+		set AccelerationHoriCible to VitesseHoriCommande*Kacchri.
+		
+		set ValeurDepenchement to VitesseHoriCommande*Kpenchhori.
+		
+		set pitchCommande to MAX((90-ValeurDepenchement),70).
+		set directionCommande to 180+ARCTAN2((VitesseHoriCible*sin(AngleDeDeplacement)-SHIP:GROUNDSPEED*sin(VShipYaw)),(VitesseHoriCible*cos(AngleDeDeplacement)-SHIP:GROUNDSPEED*cos(VShipYaw))).
+		
+		
+		set Dfreinage2 to 0.5*((Vsur^2)/((0.8*ShipThrust/SHIP:MASS)+sin(VShipPitch)*gr)).
+		
+		if Dfreinage2 > DistanceReel and Distcible < 9000 {
+			
+			set ETAPE to "Final Burn".
+			
+		
+		}
+		
+		CLEARSCREEN.
+		print "ETAPE: " + ETAPE at (0,0).
+		// print "ErreurTot: " + round(ErreurTot,2) at (0,1).
+		// print "DistanceReel: " + round(DistanceReel,2) at (0,2).
+		// print "Dfreinage: " + round(Dfreinage,2) at (0,3).
+		// print "DistanceReel: " + round(DistanceReel,5) at (0,4).
+		// print "directionCommande: " + round(directionCommande,5) at (0,5).
+		
+		// print "PitchCorr: " + round(PitchCorr,5) at (0,6).
+		// print "AccSur: " + round(AccSur,5) at (0,7).
+		// print "Cexptot: " + round(Cexptot,5) at (0,8).
+		
+	}
+	
+	if ETAPE = "AllumageFinal" {
+	
+		GEAR ON.
+		BRAKES ON.
+		RCS ON.
+		
+		set DistanceReel to ALT:RADAR/sin(-VShipPitch).
+		set Dsol to ALT:RADAR/tan(-VShipPitch).
+		
+		// set CoordCuratt to CoordPetiteDistance(Ship:Latitude,ship:longitude,Dsol,VShipYaw).
+		// set LatCurrAtt to CoordCuratt[0].
+		// set LongCurrAtt to CoordCuratt[1].
+		
+		// set ErreurTot to PetiteDistanceCoord(LatCurrAtt,LongCurrAtt,Latcible,Longcible).
+		// set DistanceCibleact to PetiteDistanceCoord(SHIP:LATITUDE,SHIP:LONGITUDE,Latcible,Longcible).
+		// set DistanceCurrAtt to PetiteDistanceCoord(SHIP:LATITUDE,SHIP:LONGITUDE,LatCurrAtt,LongCurrAtt).
+		
+		// set AlpC to AnglePetiteCoord(Latcible,Longcible,LatCurrAtt,LongCurrAtt).
+		// set BetaC2 to VShipYaw.
+		// set BetaC2 to AlpC-BetaC2.
+		
+		// set AlpC2 to AnglePetiteCoord180(Latcible,Longcible,LatCurrAtt,LongCurrAtt).
+		// set BetaC3 to VShipYaw180.
+		// set BetaC3 to AlpC-BetaC3.
+		
+		// if BetaC2 = BetaC3 {
+			// set BetaF to BetaC2.
+		// } ELSE {
+			// if BetaF = 0 {
+				// set BetaC1 to 180-arccos(((ErreurTot^2)+(DistanceCibleact^2)-(DistanceCurrAtt^2))/(2*ErreurTot*DistanceCibleact)).
+			// } ELSE {
+				// set BetaC1 to BetaF.
+			// }
+			
+			// if BetaC2 > BetaC1-5 and BetaC2 < BetaC1+5 {
+				// set BetaF to BetaC2.
+			// } ELSE {
+				// set BetaF to BetaC3.
+			// }
+		// }
+		
+		// set erreurCote to sin(betaF)*ErreurTot.
+		// set erreurLong to cos(BetaF)*ErreurTot.
+		
+		
+		set ShipThrust to SHIP:MAXTHRUST.
+		set Vsur to SHIP:VELOCITY:SURFACE:MAG.
+		set ImpSpe to ISPCurrent.
+	
+		// set TburnDuration to SHIP:MASS*(1-(1/(Conste^((Vsur+(2*9.81*sin(-VShipPitch)*ALT:RADAR)^0.5)/(9.81*ImpSpe)))))/(ShipThrust/(9.81*ImpSpe)).
+		// set Dfreinage to ((Vsur+((2*9.81*sin(-VShipPitch)*ALT:RADAR)^0.5))/2)*TburnDuration.
+		
+		
+		// set EltCal1 to SHIP:MASS*(1-(1/(Conste^((Vsur+(2*9.81*sin(-VShipPitch)*DistanceReel)^0.5)/(9.81*ImpSpe))))).
+		// set Pousser to ((Vsur+(2*9.81*sin(-VShipPitch)*DistanceReel)^0.5)*EltCal1*9.81*ImpSpe)/(2*ShipThrust*DistanceReel).
+		
+		set Pousser to (((Vsur^2)/(2*(DistanceReel-Hfusée)))-sin(VShipPitch)*9.81)*(SHIP:MASS/ShipThrust)/sin(ShipPitch).
+		
+		// set pitchCommande to -VShipPitch.
+		// set directionCommande to -VShipYaw.
+		
+		// set ShipThrust to 1*SHIP:MAXTHRUST.
+		// set Vsur to SHIP:VELOCITY:SURFACE:MAG.
+		// set DistanceReel to ALT:RADAR/sin(-VShipPitch).
+		// set Pousser to ((SHIP:MASS/(ShipThrust))*((1*(Vsur^2))/(2*DistanceReel)+sin(VShipPitch)*gr))/sin(ShipPitch).
+		
+		set PitchMax to arcsin(min(Pousser,1)).
+		set PitchMax to max(PitchMax,PitchMaxfuse).
+		
+		// set Kvihori to 0.16.
+		set Kacchri to 1.
+		
+		set AngleDeDeplacement to AnglePetiteCoord(SHIP:LATITUDE,SHIP:LONGITUDE,Latcible,longcible).
+		set VitesseHoriCible to min(PetiteDistanceCoord(SHIP:LATITUDE,SHIP:LONGITUDE,Latcible,longcible)*Kvihori,((ALT:RADAR-Hfusée)/10)^2).
+		set deltaAngle1 to (AngleDeDeplacement-VShipYaw).
+		
+		set VitesseHoriCommande to (abs((SHIP:GROUNDSPEED^2)+(VitesseHoriCible^2)-2*VitesseHoriCible*SHIP:GROUNDSPEED*cos(abs(deltaAngle1))))^0.5.
+		set AccelerationHoriCible to VitesseHoriCommande*Kacchri.
+		
+		set ValeurArcsin to Min((AccelerationHoriCible*SHIP:MASS/(ShipThrust*Pousser)),1).
+		set ValeurArcsin to Max(ValeurArcsin,-1).
+		
+		set pitchCommande to MAX((90-arcsin(ValeurArcsin)),PitchMax).
+		set directionCommande to ARCTAN2((VitesseHoriCible*sin(AngleDeDeplacement)-SHIP:GROUNDSPEED*sin(VShipYaw)),(VitesseHoriCible*cos(AngleDeDeplacement)-SHIP:GROUNDSPEED*cos(VShipYaw))).
+		
+		CLEARSCREEN.
+		print "ETAPE: " + ETAPE at (0,0).
+		print "Pousser moteur: " + round(Pousser,2) at (0,2).
+		print "estimation distance au sol: " + round(DistanceReel,2) at (0,3).
+		print "commande en azimute: " + round(directionCommande,2) at (0,4).
+		print "commande en tangage : " + round(pitchCommande,2) at (0,5).
+		print "vitesse horizontale cible: " + round(VitesseHoriCible,2) at (0,6).
+		print "coef correction Kvihori: " + round(Kvihori,5) at (0,7).
+		// print "AccSur: " + round(AccSur,5) at (0,7).
+		
+		if SHIP:VERTICALSPEED > 0 and (ALT:RADAR-Hfusée) < 1 {
+			set Pousser to 0.
+			set ETAPE to "stabilisation".
+			
+		
+		}
+		
+	}
+	
+	if ETAPE = "stabilisation"{
+	
+		set pitchCommande to 90.
+		CLEARSCREEN.
+		print "fin de mission".
+	
+	}
+	
+	// print "Lat: " + round(SHIP:LATITUDE,2) at (0,1).
+	// print "Long: " + round(SHIP:LONGITUDE,2) at (0,2).
+
+	// print "LatAtt: " + round(LatAtt,2) at (0,4).
+	// print "LongAtt: " + round(LongAtt,2) at (0,5).
+
+	//print "Vterminal: " + round(Vterminal,2) at (0,11).
+	// print "Lat: " + round(SHIP:LATITUDE,2) at (0,12).
+	
+
+}
+
+
+function ZoneAtt {
+
+	set Pi to 3.14159265359.
+	set Rc to 8.3144621.
+	
+	set dt to 1.
+	set t to 0.
+	
+	set V to SHIP:VELOCITY:ORBIT:MAG.
+	
+	set R to SHIP:ALTITUDE+BODY:RADIUS.
+	set dR to SHIP:VERTICALSPEED.
+	set PHI to SHIP:LONGITUDE*(2*Pi/360).
+	set dPHI to (V*cos(VShipPitchO)*sin(VShipYawO))/R.
+	set THETA to (90-SHIP:LATITUDE)*(2*Pi/360).
+	set dTHETA to -V*cos(VShipPitchO)*cos(VShipYawO)/R.
+	
+	set Masse to SHIP:MASS*1000.
+	
+	// CLEARSCREEN.
+	// print "dR: " + round(dR,2) at (0,1).
+	// print "PHI: " + round(PHI,4) at (0,2).
+	// print "dPHI: " + round(dPHI,6) at (0,3).
+	// print "THETA: " + round(THETA,4) at (0,4).
+	// print "dTHETA: " + round(dTHETA,6) at (0,5).
+	
+	// wait 1.
+	
+	// CLEARSCREEN.
+	
+	set Config:IPU to 1500.
+	
+	until R < BODY:RADIUS or t > 15*60 {
+		
+		if R-Body:Radius < Body:ATM:HEIGHT {
+			
+			set p to (((body:atm:ALTITUDEPRESSURE(R-body:radius)*Constant:AtmToKPa*1000)*(28.9644/1000))/(Rc*220)).
+			set S to 1.
+			set Cx to 1.
+			
+			set Ftr to 0.5*p*S*Cx*(dR^2).
+			set Ftt to 0.5*p*S*Cx*((R*dTHETA)^2).
+			set Ftp to 0.5*p*S*Cx*((R*sin(THETA*(360/(2*Pi)))*dPHI)^2).
+			
+			if dR > 0 {
+				set Ftr to -Ftr.
+			}
+			if dTHETA > 0 {
+				set Ftt to -Ftt.
+			}
+			if dPHI > 0 {
+				set Ftp to -Ftp.
+			}
+		
+		} ELSE {
+			
+			set Ftr to 0.
+			set Ftt to 0.
+			set Ftp to 0.
+			
+		}
+		
+		set dRdt to ((-BODY:MU/(R^2))+R*(dPHI^2)*(sin(THETA*(360/(2*Pi)))^2)+R*(dTHETA^2)+(Ftr/Masse))*dt+dR.
+		set dTHETAdt to (1/R)*(R*(dPHI^2)*sin(THETA*(360/(2*Pi)))*cos(THETA*(360/(2*Pi)))-2*dR*dTHETA+(Ftt/Masse))*dt+dTHETA.
+		set dPHIdt to (1/(R*sin(THETA*(360/(2*Pi)))))*(-2*dR*dPHI*sin(THETA*(360/(2*Pi)))-2*R*dTHETA*dPHI*cos(THETA*(360/(2*Pi)))+(Ftp/Masse))*dt+dPHI.
+		
+		set R to dR*dt + R.
+		set THETA to dTHETA*dt + THETA.
+		set PHI to dPHI*dt + PHI.
+		
+		set dR to dRdt.
+		set dPHI to dPHIdt.
+		set dTHETA to dTHETAdt.
+		
+		set t to t + dt.
+	
+	}
+	
+	set Config:IPU to 150.
+	
+	set Vter to ((dR^2)+((R*dTHETA)^2)+((R*sin(THETA*(360/(2*Pi)))*dPHI)^2))^0.5.
+	
+	set LatATT to (90-(360/(2*Pi))*THETA).
+	set LongATT to PHI*(360/(2*Pi))-t*(360/BODY:ROTATIONPERIOD).
+	
+	set Coord to list(LatATT,LongATT,t,Vter).
+	
+	return Coord.
+
+}
+
+function ZoneAttBurn {
+
+	parameter betaBurn.
+	parameter DVburn.
+	parameter Hi.
+	parameter Tattente.
+	
+	set Pi to 3.14159265359.
+	set Rc to 8.3144621.
+	
+	set dt to 1.
+	set t1 to 0.
+	
+	
+	// set Vi to SHIP:VERTICALSPEED*cos(VShipPitchO).
+	// set VShipYawB to arctan2(Vi*sin(VShipYawO)+DVburn*sin(betaBurn),Vi*cos(VShipYawO)+DVburn*cos(betaBurn)).
+	// set VhoriB to ((Vi^2+DVburn^2-2*Vi*DVburn*cos(VShipYawB))^0.5).
+	// set VShipPitchB to arctan2(SHIP:VERTICALSPEED,VhoriB).
+	// set V to (VhoriB^2+SHIP:VERTICALSPEED^2)^0.5.
+	
+	
+	set V to SHIP:VELOCITY:ORBIT:MAG.
+	
+	set ImpSpe to ISPCurrent.
+	set ShipThrust to SHIP:MAXTHRUST*1000.
+	set Tburn to DeltaTburn(ShipThrust,ImpSpe,DVburn).
+	
+	if DVburn = 0 {
+		set ShipThrust to 0.
+	}
+	
+	set Fmp to 0.
+	set Fmt to 0.
+	
+	set R to SHIP:ALTITUDE+BODY:RADIUS.
+	set dR to SHIP:VERTICALSPEED.
+	set PHI to SHIP:LONGITUDE*(2*Pi/360).
+	set dPHI to (V*cos(VShipPitchO)*sin(VShipYawO))/R.
+	set THETA to (90-SHIP:LATITUDE)*(2*Pi/360).
+	set dTHETA to -V*cos(VShipPitchO)*cos(VShipYawO)/R.
+	
+	set Masse to SHIP:MASS*1000.
+	
+	// CLEARSCREEN.
+	// print "dR: " + round(dR,2) at (0,1).
+	// print "PHI: " + round(PHI,4) at (0,2).
+	// print "dPHI: " + round(dPHI,6) at (0,3).
+	// print "THETA: " + round(THETA,4) at (0,4).
+	// print "dTHETA: " + round(dTHETA,6) at (0,5).
+	
+	// wait 1.
+	
+	// CLEARSCREEN.
+	
+	set Config:IPU to 2000.
+	
+	set arretMoteur to 0.
+	
+	until R < BODY:RADIUS+Hi or t1 > 25*60 {
+		
+		if t1 = Tattente {
+			
+			set dt to dt/10.
+			
+			set Fmt to -cos(betaBurn)*ShipThrust.
+			
+			set Fmp to sin(betaBurn)*ShipThrust.
+			
+			set q to ShipThrust/(9.81*ImpSpe).
+			
+			// print"dt: " + round(dt,2).
+			// print"Fmt: " + round(Fmt,2).
+			// print"Fmp: " + round(Fmp,2).
+			// print"q: " + round(q,2).
+		
+		}
+		
+		if t1 > Tattente + Tburn and arretMoteur = 0 {
+		
+			set dt to dt*10.
+			
+			set Fmt to 0.
+			
+			set Fmp to 0.
+			
+			set q to 0.
+			
+			set arretMoteur to 1.
+		
+		}
+		
+		if R-Body:Radius < Body:ATM:HEIGHT {
+			
+			set p to (((body:atm:ALTITUDEPRESSURE(R-body:radius)*Constant:AtmToKPa*1000)*(28.9644/1000))/(Rc*220)).
+			set S to 1.
+			set Cx to 1.
+			
+			set Ftr to 0.5*p*S*Cx*(dR^2).
+			set Ftt to 0.5*p*S*Cx*((R*dTHETA)^2).
+			set Ftp to 0.5*p*S*Cx*((R*sin(THETA*(360/(2*Pi)))*(dPHI-(2*Pi/BODY:ROTATIONPERIOD)))^2).
+			
+			set Vkerb1 to ((dR^2)+((R*dTHETA)^2)+((R*sin(THETA*(360/(2*Pi)))*(dPHI-(2*Pi/BODY:ROTATIONPERIOD)))^2))^0.5.
+			
+			if dR > 0 {
+				set Ftr to -Ftr.
+			}
+			if dTHETA > 0 {
+				set Ftt to -Ftt.
+			}
+			if (dPHI-(2*Pi/BODY:ROTATIONPERIOD)) > 0 {
+				set Ftp to -Ftp.
+			}
+		
+		} ELSE {
+			
+			set Ftr to 0.
+			set Ftt to 0.
+			set Ftp to 0.
+			
+		}
+		
+		set dRdt to ((-BODY:MU/(R^2))+R*(dPHI^2)*(sin(THETA*(360/(2*Pi)))^2)+R*(dTHETA^2)+(Ftr/Masse))*dt+dR.
+		set dTHETAdt to (1/R)*(R*(dPHI^2)*sin(THETA*(360/(2*Pi)))*cos(THETA*(360/(2*Pi)))-2*dR*dTHETA+(Ftt/Masse)+(Fmt/Masse))*dt+dTHETA.
+		set dPHIdt to (1/(R*sin(THETA*(360/(2*Pi)))))*(-2*dR*dPHI*sin(THETA*(360/(2*Pi)))-2*R*dTHETA*dPHI*cos(THETA*(360/(2*Pi)))+(Ftp/Masse)+(Fmp/Masse))*dt+dPHI.
+		
+		set R to dR*dt + R.
+		set THETA to dTHETA*dt + THETA.
+		set PHI to dPHI*dt + PHI.
+		
+		set dR to dRdt.
+		set dPHI to dPHIdt.
+		set dTHETA to dTHETAdt.
+		
+		if abs(Fmt)>0 or abs(Fmp)>0 {
+			
+			set Masse to Masse-q*dt.
+		
+		}
+		
+		set t1 to t1 + dt.
+	
+	}
+	
+	set Config:IPU to 150.
+	
+	set Vter to ((dR^2)+((R*dTHETA)^2)+((R*sin(THETA*(360/(2*Pi)))*dPHI)^2))^0.5.
+	
+	set LatATT to (90-(360/(2*Pi))*THETA).
+	set LongATT to PHI*(360/(2*Pi))-t1*(360/BODY:ROTATIONPERIOD).
+	
+	set Coord to list(LatATT,LongATT).
+	
+	return Coord.
+
+}
+
+function RechercheDeorbitBurn {
+	
+	parameter LatAttisage.
+	parameter LongAtterisage.
+	parameter Hl.
+	parameter DeltaD.
+	parameter Tattente.
+	
+	set Ddeg to ((LatAttisage-Ship:Latitude)^2+(LongAtterisage-SHIP:Longitude)^2)^0.5.
+	set Dmin to arccos(BODY:RADIUS/(BODY:RADIUS+SHIP:ALTITUDE))*2.
+	
+	if Ddeg < Dmin {
+		
+		set betburn to VShipYawO+180.
+		set Vburn to SHIP:VELOCITY:ORBIT:MAG/5.
+		
+		set Vx to Vburn*sin(betburn).
+		set Vy to Vburn*cos(betburn).
+		
+		set ResultatCoord to ZoneAttBurn(betburn,Vburn,Hl,Tattente).
+		set LatC to ResultatCoord[0].
+		set LongC to ResultatCoord[1].
+		set DistanceAtt to PetiteDistanceCoord(LatC,LongC,LatAttisage,LongAtterisage).
+		
+		set alphaC to 10000. //100m pour 1m/s
+		set betaC to AnglePetiteCoord(LatC,LongC,LatAttisage,LongAtterisage).
+		
+		// print "Vburn1: " + round(Vburn,2).
+		// print "betburn1: " + round(betburn,2).
+		// print "LatC: " + round(LatC,5).
+		// print "LongC: " + round(LongC,2).
+		// print "DistanceAtt1: " + round(DistanceAtt,2).
+		
+		until DistanceAtt < DeltaD {
+			
+			set Vx to Vx + (DistanceAtt/(1*alphaC))*sin(betaC).
+			set Vy to Vy + (DistanceAtt/(1*alphaC))*cos(betaC).
+			
+			set betburn to arctan2(Vx,Vy).
+			set Vburn to ((Vx^2+Vy^2)^0.5).
+			
+			set ResultatCoord to ZoneAttBurn(betburn,Vburn,Hl,Tattente).
+			
+			set LatCprec to LatC.
+			set LongCprec to LongC.
+			
+			set LatC to ResultatCoord[0].
+			set LongC to ResultatCoord[1].
+			
+			set alphaC to PetiteDistanceCoord(LatC,LongC,LatCprec,LongCprec)/(DistanceAtt/alphaC).
+			set DistanceAtt to PetiteDistanceCoord(LatC,LongC,LatAttisage,LongAtterisage).
+			set betaC to AnglePetiteCoord(LatC,LongC,LatAttisage,LongAtterisage).
+			
+			// print "BurnCorrectiob:" + round((DistanceAtt/(2*alphaC)),2).
+			// print "alphaC: "+ round(alphaC,2).
+			// print "Vburn: " + round(Vburn,2).
+			// print "betburn: " + round(betburn,2).
+			// print "LatC: " + round(LatC,3).
+			// print "LongC: " + round(LongC,3).
+			print "DistanceAtt(Km): " + round(DistanceAtt/1000,2).
+			
+			
+		}
+		
+		return list(Vburn,betburn,DistanceAtt).
+	
+	} ELSE {
+		
+		return list(0,0,0).
+	
+	}
+
+}
+
+function pair {
+	
+	parameter H.
+
+	set Rc to 8.3144621.
+	
+	set p to (((body:atm:ALTITUDEPRESSURE(H)*Constant:AtmToKPa*1000)*(28.9644/1000))/(Rc*220)).
+	
+	return p.
+
+}
+
+function gr {
+	
+	return BODY:MU/((BODY:RADIUS+SHIP:ALTITUDE)^2).
+
+}
+
+function Moy {
+	
+	parameter NewValeur.
+	parameter ListAncValeur.
+	parameter Nmoy.
+	
+	if ListAncValeur:length > Nmoy {
+		
+		ListAncValeur:add(NewValeur).
+		ListAncValeur:remove(0).
+		
+	} ELSE {
+		
+		ListAncValeur:add(NewValeur).
+	
+	}
+
+	set Moy1 to 0.
+	
+	for i in range(ListAncValeur:length) {
+		
+		set Moy1 to Moy1 + ListAncValeur[i].
+	
+	}
+	
+	set Moy1 to Moy1/(Nmoy+1).
+	
+	return list(Moy1,ListAncValeur).
+
+}
+
+function AccSur {
+	
+	set t1 to TIME:SECONDS.
+	set V1 to SHIP:VELOCITY:SURFACE:MAG.
+	wait 0.001.
+	set t2 to TIME:SECONDS.
+	set V2 to SHIP:VELOCITY:SURFACE:MAG.
+	
+	set AccKerb to (V2-V1)/(t2-t1).
+	
+	return AccKerb.
+	
+}
+
+
+function MaxEnc {
+	
+	parameter Valeur.
+	parameter Enc.
+	
+	set Valeur to max(Valeur,-Enc).
+	set Valeur to min(Valeur,Enc).
+	
+	return Valeur.
+}
+
+function CoordPetiteDistance {
+	
+	parameter Lat1.
+	parameter Long1.
+	parameter DistanceaParc.
+	parameter Diction.
+	
+	set beta to (DistanceaParc/Body:RADIUS)*(180/3.1415).
+	
+	
+	return list(Lat1+beta*cos(Diction),Long1+beta*sin(Diction)).
+}
+
+function AnglePetiteCoord {
+
+	parameter LatDepart.
+	parameter LongDepart.
+	parameter LatArri.
+	parameter LongArri.
+	
+	set angle to ARCTAN2(LongArri-LongDepart,LatArri-LatDepart).
+	
+	if angle < 0 {
+		
+		set angle to angle+360.
+	
+	}
+	
+	return (angle).
+	
+}
+
+function AnglePetiteCoord180 {
+
+	parameter LatDepart.
+	parameter LongDepart.
+	parameter LatArri.
+	parameter LongArri.
+	
+	set angle to ARCTAN2(LongArri-LongDepart,LatArri-LatDepart).
+	
+	// if angle < 0 {
+		
+		// set angle to angle+360.
+	
+	// }
+	
+	return (angle).
+	
+}
+
+function PetiteDistanceCoord {
+	
+	parameter Lat1.
+	parameter Long1.
+	
+	parameter Lat2.
+	parameter Long2.
+	
+	return ((((Lat1-Lat2)^2+(Long1-Long2)^2)^0.5)*(3.1415/180)*Body:RADIUS).
+
+}
+
+function DeltaTburn {
+	
+	parameter Fp.
+	parameter Ip.
+	parameter Dv.
+	
+	set g to 9.81.
+	
+	set Ve to (g*Ip).
+	set q to Fp/(g*Ip).
+	
+	set Tb to ((SHIP:MASS*1000)/q)*(1-((2.71828182846)^(-Dv/Ve))).
+	
+	return Tb.
+}
+
+function ISPCurrent {
+	
+	LIST ENGINES IN myVariable.
+	set I to 0.
+	FOR eng IN myVariable {
+		
+		set I to  I + eng:ISP.
+	
+	}
+	
+	return ((I/myVariable:LENGTH)).
+}
+
+function AngleVect {
+	
+	parameter Norm1.
+	parameter Norm2.
+	parameter Arg1.
+	parameter Arg2.
+	
+	set X1 to cos(Arg1)*Norm1.
+	set X2 to cos(Arg2)*Norm2.
+	set Y1 to sin(Arg1)*Norm1.
+	set Y2 to sin(Arg2)*Norm2.
+	
+	set PrdSca to X1*X2+Y1*Y2.
+	
+	set angle to arccos(PrdSca/(Norm1*Norm2)).
+	
+	return angle.
+
+}
+
+function Prime {
+	
+	parameter f.
+	parameter X1.
+	parameter dx.
+	
+	return ((f(X1+dx)-f(X1))/dx).
+
+}
+
+function VShipPitch {
+
+	return ARCTAN2(SHIP:VERTICALSPEED,SHIP:GROUNDSPEED).
+
+}
+
+
+function ShipPitch {
+
+	set aShipPitch to VANG(ship:up:vector,ship:facing:forevector).
+	
+	return (-1)*aShipPitch+90.
+
+}
+
+function ShipRoll {
+
+	return VECTORANGLE(UP:VECTOR,SHIP:FACING:STARVECTOR).
+	
+}
+
+
+function ShipYaw {
+	
+	SET rawyaw TO (-1 * SHIP:BEARING).
+	
+	IF rawyaw < 0 {
+		SET currentyaw TO (rawyaw + 360).
+	} ELSE {
+		SET currentyaw TO rawyaw.
+	}
+	
+	return currentyaw.
+
+}
+
+
+function VShipYaw {
+
+	set VShipYawvec to VectorExclude(SHIP:UP:vector,SHIP:VELOCITY:SURFACE).
+	set VShipYawd to VECTORANGLE(SHIP:NORTH:vector,VShipYawvec).
+	
+	set vecVersEST to LATLNG(SHIP:LATITUDE,SHIP:LONGITUDE+0.01):POSITION.
+	set sign to ((VShipYawvec*vecVersEST)/abs((VShipYawvec*vecVersEST))).
+	
+	if sign < 0 {
+		
+		set VShipYawd to -VShipYawd + 360.
+	
+	}
+
+	return VShipYawd.
+
+}
+
+function VShipYaw180 {
+
+	set VShipYawvec to VectorExclude(SHIP:UP:vector,SHIP:VELOCITY:SURFACE).
+	set VShipYawd to VECTORANGLE(SHIP:NORTH:vector,VShipYawvec).
+	
+	set vecVersEST to LATLNG(SHIP:LATITUDE,SHIP:LONGITUDE+0.01):POSITION.
+	set sign to ((VShipYawvec*vecVersEST)/abs((VShipYawvec*vecVersEST))).
+	
+	// if sign < 0 {
+		
+		// set VShipYawd to -VShipYawd + 360.
+	
+	// }
+
+	return VShipYawd.
+
+}
+
+function VShipPitchO {
+
+	set aShipPitch to VANG(ship:up:vector,SHIP:VELOCITY:ORBIT).
+	
+	return (-1)*aShipPitch+90.
+
+}
+
+function VShipYawO {
+
+	set VShipYawvec to VectorExclude(SHIP:UP:vector,SHIP:VELOCITY:ORBIT).
+	set VShipYawd to VECTORANGLE(SHIP:NORTH:vector,VShipYawvec).
+	
+	set vecVersEST to LATLNG(SHIP:LATITUDE,SHIP:LONGITUDE+0.01):POSITION.
+	set sign to ((VShipYawvec*vecVersEST)/abs((VShipYawvec*vecVersEST))).
+	
+	if sign < 0 {
+		
+		set VShipYawd to -VShipYawd + 360.
+	
+	}
+
+	return VShipYawd.
+
+}
